@@ -86,6 +86,25 @@ def fetch_all(handles: list[str], hours: int = 48) -> list[dict]:
         futures = {ex.submit(fetch_channel_videos, h, hours): h for h in handles}
         for f in as_completed(futures):
             all_videos.extend(f.result())
-
     all_videos.sort(key=lambda x: x["views"] or 0, reverse=True)
     return all_videos
+
+
+def fetch_comments(video_id: str) -> dict:
+    try:
+        import yt_dlp
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "getcomments": True,
+            "extractor_args": {"youtube": {"max_comments": ["30", "0", "0", "0"]}},
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            comments = info.get("comments") or []
+            top5 = comments[:5]
+            by_likes = sorted(comments, key=lambda c: c.get("like_count") or 0, reverse=True)[:5]
+            return {"top": top5, "by_likes": by_likes}
+    except Exception:
+        return {"top": [], "by_likes": []}
