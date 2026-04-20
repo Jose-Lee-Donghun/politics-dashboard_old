@@ -88,12 +88,12 @@ with st.sidebar:
 
         cmts = st.session_state[cache_key]
 
-        if not cmts["top"] and not cmts["by_likes"]:
+        if not cmts["popular"] and not cmts["recent"]:
             st.markdown('<p style="font-size:0.72rem;color:#5a5a7a">댓글을 불러올 수 없습니다.</p>', unsafe_allow_html=True)
         else:
-            if cmts["top"]:
+            if cmts["popular"]:
                 st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0">▸ 인기 댓글</p>', unsafe_allow_html=True)
-                for c in cmts["top"]:
+                for c in cmts["popular"]:
                     txt = (c.get("text") or "")[:200]
                     likes = c.get("like_count") or 0
                     st.markdown(
@@ -101,9 +101,9 @@ with st.sidebar:
                         f'<div class="comment-likes">👍 {likes:,}</div></div>',
                         unsafe_allow_html=True,
                     )
-            if cmts["by_likes"]:
-                st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0;margin-top:12px">▸ 좋아요 순</p>', unsafe_allow_html=True)
-                for c in cmts["by_likes"]:
+            if cmts["recent"]:
+                st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0;margin-top:12px">▸ 최신 댓글</p>', unsafe_allow_html=True)
+                for c in cmts["recent"]:
                     txt = (c.get("text") or "")[:200]
                     likes = c.get("like_count") or 0
                     st.markdown(
