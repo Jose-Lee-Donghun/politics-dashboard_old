@@ -88,8 +88,9 @@ with st.sidebar:
 
         cmts = st.session_state[cache_key]
 
-        if not cmts["popular"] and not cmts["recent"]:
-            st.markdown('<p style="font-size:0.72rem;color:#5a5a7a">댓글을 불러올 수 없습니다.</p>', unsafe_allow_html=True)
+        err = cmts.get('error')
+        if not cmts['popular'] and not cmts['recent']:
+            st.error(err or '댓글 없음')
         else:
             if cmts["popular"]:
                 st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0">▸ 인기 댓글</p>', unsafe_allow_html=True)
