@@ -1,7 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
 import re
-import os
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -127,54 +126,3 @@ def fetch_comments(video_id: str) -> dict:
     except Exception as e:
         import traceback
         return {"popular": [], "recent": [], "error": traceback.format_exc()}
-
-
-def suggest_titles(video_title: str, comments: list[dict]) -> list[str]:
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return ["ANTHROPIC_API_KEY 환경변수를 설정해 주세요."]
-
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-
-        comment_texts = "\n".join(
-            f"- {c.get('text', '')}" for c in comments[:10] if c.get("text")
-        )
-
-        prompt = f"""너는 2억 팔로워를 가진 초대형 인기 유튜버야.
-시청자들의 클릭을 유도하는 강렬하고 자극적인 제목을 만드는 전문가야.
-
-다음 영상 제목과 시청자 댓글을 보고, 더 많은 클릭을 유도할 수 있는 유튜브 제목 3개를 제안해줘.
-
-원본 제목: {video_title}
-
-시청자 댓글:
-{comment_texts}
-
-조건:
-- 한국어로 작성
-- 호기심과 긴장감을 극대화
-- 숫자, 감탄사, 강조어 적극 활용
-- 각 제목은 한 줄로 작성
-- 번호 없이 제목만 출력 (1. 2. 3. 없이)
-- 줄바꿈으로 구분해서 딱 3개만"""
-
-        message = client.messages.create(
-            model="claude-opus-4-7",
-            max_tokens=500,
-            thinking={"type": "adaptive"},
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        text = ""
-        for block in message.content:
-            if block.type == "text":
-                text = block.text
-                break
-
-        titles = [t.strip() for t in text.strip().split("\n") if t.strip()]
-        return titles[:3] if titles else ["제목 생성 실패"]
-    except Exception:
-        import traceback
-        return [f"오류: {traceback.format_exc()[:200]}"]

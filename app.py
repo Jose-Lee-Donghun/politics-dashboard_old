@@ -3,7 +3,7 @@ import os
 os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
-from fetcher import fetch_all, fetch_comments, suggest_titles
+from fetcher import fetch_all, fetch_comments
 from channels import CHANNELS
 
 KST = timezone(timedelta(hours=9))
@@ -76,7 +76,7 @@ filtered = [v for v in videos if (v["views"] or 0) >= min_views]
 with st.sidebar:
     sel = st.session_state.get("selected_video")
     if sel:
-        st.markdown(f'<p style="font-size:0.8rem;font-weight:600;color:#7eb3ff">💬 댓글 & AI 제목 추천</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-size:0.8rem;font-weight:600;color:#7eb3ff">💬 댓글</p>', unsafe_allow_html=True)
         st.markdown(f'<p style="font-size:0.72rem;color:#c0c0d0">{sel["title"]}</p>', unsafe_allow_html=True)
         st.markdown(f'<p style="font-size:0.65rem;color:#5a5a7a">📺 {sel["channel"]}</p>', unsafe_allow_html=True)
         st.divider()
@@ -92,24 +92,6 @@ with st.sidebar:
         if not cmts['popular'] and not cmts['recent']:
             st.error(err or '댓글 없음')
         else:
-            # AI 제목 추천
-            title_key = f"titles_{sel['video_id']}"
-            if title_key not in st.session_state:
-                all_comments = cmts.get("popular", []) + cmts.get("recent", [])
-                with st.spinner("🤖 Claude가 제목 생성 중..."):
-                    st.session_state[title_key] = suggest_titles(sel["title"], all_comments)
-
-            titles = st.session_state.get(title_key, [])
-            if titles:
-                st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#f0b429;margin:8px 0 4px">✨ AI 추천 제목</p>', unsafe_allow_html=True)
-                for t in titles:
-                    st.markdown(
-                        f'<div style="background:#0d1b0d;border-left:2px solid #f0b429;border-radius:0 4px 4px 0;'
-                        f'padding:6px 8px;margin:3px 0;font-size:0.72rem;color:#ffe082;line-height:1.4">{t}</div>',
-                        unsafe_allow_html=True,
-                    )
-                st.divider()
-
             if cmts["popular"]:
                 st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0">▸ 인기 댓글</p>', unsafe_allow_html=True)
                 for c in cmts["popular"]:
