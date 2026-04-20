@@ -1,176 +1,169 @@
 import streamlit as st
 import os
 os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from fetcher import fetch_all, fetch_comments, suggest_titles
 from channels import CHANNELS
 
 KST = timezone(timedelta(hours=9))
 
-st.set_page_config(page_title="한국 정치 유튜브", page_icon="📺", layout="wide")
+st.set_page_config(page_title="한국 정치 유튜브 대시보드", page_icon="📺", layout="wide")
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #000; color: #e0e0e0; }
-.stApp { background-color: #000000; }
-.block-container { padding: 1rem 1.5rem; }
-h1, h2, h3 { color: #ffffff; }
-.video-card {
-    background: #0a0a0a;
-    border: 1px solid #1a1a2e;
-    border-radius: 8px;
-    padding: 8px;
-    margin-bottom: 10px;
-}
-.video-title { font-size: 0.78rem; font-weight: 600; color: #e0e0e0; line-height: 1.3; }
-.video-meta { font-size: 0.68rem; color: #888; margin-top: 3px; }
-.channel-header {
-    background: linear-gradient(90deg, #0d1b2a 0%, #000 100%);
-    border-left: 3px solid #1565c0;
-    padding: 6px 12px;
-    margin: 16px 0 8px 0;
-    border-radius: 0 4px 4px 0;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #90caf9;
-}
-.stButton button {
-    background: #1565c0;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    padding: 4px 10px;
-}
-.stButton button:hover { background: #1976d2; }
-.comment-box {
-    background: #0d1117;
-    border: 1px solid #1e2a3a;
-    border-radius: 6px;
-    padding: 8px 10px;
-    margin: 4px 0;
-    font-size: 0.75rem;
-    color: #ccc;
-}
-.title-suggest {
-    background: linear-gradient(135deg, #0d1b2a, #0a1628);
-    border: 1px solid #1565c0;
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin: 6px 0;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #90caf9;
-}
-div[data-testid="stSidebar"] { background: #050505; border-right: 1px solid #111; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+  html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+  .stApp { background: #000000; }
+
+  .ch-header {
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #7eb3ff;
+    border-bottom: 1px solid #1a1a2e;
+    padding-bottom: 6px; margin: 18px 0 10px;
+  }
+  .vid-title {
+    font-size: 0.72rem; font-weight: 500; line-height: 1.4;
+    color: #e8e8f0; margin: 5px 0 3px;
+  }
+  .vid-meta { font-size: 0.65rem; color: #5a5a7a; margin-bottom: 3px; }
+
+  .comment-box {
+    background: #080810; border-left: 2px solid #1565c0;
+    border-radius: 0 4px 4px 0; padding: 6px 8px; margin: 4px 0;
+  }
+  .comment-label {
+    font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #1565c0; margin: 10px 0 4px;
+  }
+  .comment-text { font-size: 0.72rem; color: #c0c0d0; line-height: 1.5; }
+  .comment-likes { font-size: 0.62rem; color: #5a5a7a; margin-top: 2px; }
+
+  .stButton > button {
+    background: transparent; border: 1px solid #1a1a2e;
+    color: #5a7aaa; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;
+  }
+  .stButton > button:hover { border-color: #1565c0; color: #7eb3ff; }
+  hr { border-color: #0d0d1a; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h2 style='margin-bottom:4px'>📺 한국 정치 유튜브 대시보드</h2>", unsafe_allow_html=True)
-st.caption(f"실시간 조회수 · {datetime.now(KST).strftime('%Y-%m-%d %H:%M')} KST")
+st.markdown('<p style="font-size:1.3rem;font-weight:600;letter-spacing:0.05em;color:#fff;margin-bottom:2px">📺 한국 정치 유튜브 대시보드</p>', unsafe_allow_html=True)
+st.markdown(f'<p style="font-size:0.72rem;color:#5a5a7a;margin-bottom:12px">기준시간: {datetime.now(KST).strftime("%Y-%m-%d %H:%M")} KST</p>', unsafe_allow_html=True)
 
-c1, c2, c3 = st.columns([1, 1, 2])
+c1, c2, c3 = st.columns([1, 2, 1])
 with c1:
     hours = st.selectbox("기간", [24, 48, 72], format_func=lambda x: f"최근 {x}시간", label_visibility="collapsed")
 with c2:
-    min_views = st.number_input("최소 조회수", min_value=0, value=0, step=1000, label_visibility="collapsed")
+    min_views = st.number_input("최소 조회수", min_value=0, value=1000, step=500, label_visibility="collapsed")
 with c3:
-    refresh = st.button("🔄 새로고침", type="primary")
+    refresh = st.button("⟳ 새로고침", type="primary")
 
 if refresh or "videos" not in st.session_state:
     with st.spinner("채널 스캔 중..."):
         st.session_state.videos = fetch_all(CHANNELS, hours=hours)
     st.session_state.fetched_at = datetime.now(KST).strftime("%H:%M:%S")
+    st.session_state.pop("selected_video", None)
 
 videos = st.session_state.get("videos", [])
+fetched_at = st.session_state.get("fetched_at", "")
+if fetched_at:
+    st.markdown(f'<span style="font-size:0.68rem;color:#3a3a5a">마지막 갱신: {fetched_at}</span>', unsafe_allow_html=True)
+
 filtered = [v for v in videos if (v["views"] or 0) >= min_views]
 
-# Sidebar: selected video comments + title suggestions
+# ── 사이드바: 선택된 영상 댓글 ──────────────────────────────────
 with st.sidebar:
-    st.markdown("### 💬 댓글 & AI 제목 추천")
     sel = st.session_state.get("selected_video")
     if sel:
-        st.markdown(f"**{sel['title'][:50]}...**" if len(sel['title']) > 50 else f"**{sel['title']}**")
-        st.markdown("---")
+        st.markdown(f'<p style="font-size:0.8rem;font-weight:600;color:#7eb3ff">💬 댓글</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-size:0.72rem;color:#c0c0d0">{sel["title"]}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-size:0.65rem;color:#5a5a7a">📺 {sel["channel"]}</p>', unsafe_allow_html=True)
+        st.divider()
 
-        if st.button("댓글 불러오기 & 제목 추천"):
-            with st.spinner("댓글 로딩 중..."):
-                result = fetch_comments(sel["video_id"])
-                st.session_state.comments_result = result
-            if result.get("popular") or result.get("recent"):
-                all_comments = result.get("popular", []) + result.get("recent", [])
+        cache_key = f"cmts_{sel['video_id']}"
+        if cache_key not in st.session_state:
+            with st.spinner("댓글 불러오는 중..."):
+                st.session_state[cache_key] = fetch_comments(sel["video_id"])
+
+        cmts = st.session_state[cache_key]
+
+        err = cmts.get('error')
+        if not cmts['popular'] and not cmts['recent']:
+            st.error(err or '댓글 없음')
+        else:
+            # AI 제목 추천
+            title_key = f"titles_{sel['video_id']}"
+            if title_key not in st.session_state:
+                all_comments = cmts.get("popular", []) + cmts.get("recent", [])
                 with st.spinner("🤖 Claude가 제목 생성 중..."):
-                    titles = suggest_titles(sel["title"], all_comments)
-                st.session_state.suggested_titles = titles
-            else:
-                st.session_state.suggested_titles = []
+                    st.session_state[title_key] = suggest_titles(sel["title"], all_comments)
 
-        result = st.session_state.get("comments_result", {})
-        titles = st.session_state.get("suggested_titles", [])
+            titles = st.session_state.get(title_key, [])
+            if titles:
+                st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#f0b429;margin:8px 0 4px">✨ AI 추천 제목</p>', unsafe_allow_html=True)
+                for t in titles:
+                    st.markdown(
+                        f'<div style="background:#0d1b0d;border-left:2px solid #f0b429;border-radius:0 4px 4px 0;'
+                        f'padding:6px 8px;margin:3px 0;font-size:0.72rem;color:#ffe082;line-height:1.4">{t}</div>',
+                        unsafe_allow_html=True,
+                    )
+                st.divider()
 
-        if result.get("error"):
-            st.error(result["error"][:300])
-
-        if titles:
-            st.markdown("#### 🎯 AI 추천 제목")
-            for t in titles:
-                st.markdown(f'<div class="title-suggest">✨ {t}</div>', unsafe_allow_html=True)
-
-        popular = result.get("popular", [])
-        recent = result.get("recent", [])
-
-        if popular:
-            st.markdown("#### 👍 인기 댓글 TOP 5")
-            for c in popular:
-                likes = c.get("votes", "")
-                likes_str = f" · 👍{likes}" if likes else ""
-                st.markdown(f'<div class="comment-box">{c.get("text","")[:100]}<br><small style="color:#555">{likes_str}</small></div>', unsafe_allow_html=True)
-
-        if recent:
-            st.markdown("#### 🕐 최신 댓글 5개")
-            for c in recent:
-                st.markdown(f'<div class="comment-box">{c.get("text","")[:100]}</div>', unsafe_allow_html=True)
-
-        if not popular and not recent and not result.get("error") and result:
-            st.info("댓글을 불러올 수 없습니다.")
+            if cmts["popular"]:
+                st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0">▸ 인기 댓글</p>', unsafe_allow_html=True)
+                for c in cmts["popular"]:
+                    txt = (c.get("text") or "")[:200]
+                    likes = c.get("like_count") or 0
+                    st.markdown(
+                        f'<div class="comment-box"><div class="comment-text">{txt}</div>'
+                        f'<div class="comment-likes">👍 {likes:,}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+            if cmts["recent"]:
+                st.markdown('<p style="font-size:0.65rem;letter-spacing:0.1em;color:#1565c0;margin-top:12px">▸ 최신 댓글</p>', unsafe_allow_html=True)
+                for c in cmts["recent"]:
+                    txt = (c.get("text") or "")[:200]
+                    likes = c.get("like_count") or 0
+                    st.markdown(
+                        f'<div class="comment-box"><div class="comment-text">{txt}</div>'
+                        f'<div class="comment-likes">👍 {likes:,}</div></div>',
+                        unsafe_allow_html=True,
+                    )
     else:
-        st.info("영상의 💬 버튼을 눌러 댓글과 AI 제목 추천을 확인하세요.")
+        st.markdown('<p style="font-size:0.75rem;color:#3a3a5a">영상 아래 💬 버튼을 누르면<br>댓글이 여기에 표시됩니다.</p>', unsafe_allow_html=True)
 
-# Main: channel-grouped grid
+# ── 메인: 채널별 영상 그리드 ─────────────────────────────────────
 if not filtered:
     st.info("해당 조건에 맞는 영상이 없습니다.")
 else:
-    st.markdown(f"<small>총 **{len(filtered)}개** 영상</small>", unsafe_allow_html=True)
+    st.markdown(f'<span style="font-size:0.72rem;color:#5a5a7a">{len(filtered)}개 영상</span>', unsafe_allow_html=True)
 
-    from collections import defaultdict
-    by_channel = defaultdict(list)
+    grouped = defaultdict(list)
     for v in filtered:
-        by_channel[v["channel"]].append(v)
+        grouped[v["channel"]].append(v)
 
     COLS = 5
-    for channel_name, vids in by_channel.items():
-        st.markdown(f'<div class="channel-header">📡 {channel_name} ({len(vids)}개)</div>', unsafe_allow_html=True)
-        for i in range(0, len(vids), COLS):
+
+    for ch_name, ch_videos in sorted(grouped.items(), key=lambda x: -sum(v["views"] or 0 for v in x[1])):
+        st.markdown(f'<div class="ch-header">📺 {ch_name} &nbsp;<span style="color:#3a3a5a;font-weight:400">({len(ch_videos)})</span></div>', unsafe_allow_html=True)
+
+        for i in range(0, len(ch_videos), COLS):
             cols = st.columns(COLS)
             for j, col in enumerate(cols):
                 idx = i + j
-                if idx >= len(vids):
+                if idx >= len(ch_videos):
                     break
-                v = vids[idx]
+                v = ch_videos[idx]
                 with col:
                     st.image(v["thumbnail"], use_container_width=True)
                     views_str = f"{v['views']:,}" if v["views"] is not None else "-"
                     pub_str = v["published"].strftime("%m/%d %H:%M") if v["published"] else ""
                     st.markdown(
-                        f'<div class="video-card">'
-                        f'<div class="video-title"><a href="{v["link"]}" target="_blank" style="color:#90caf9;text-decoration:none">{v["title"]}</a></div>'
-                        f'<div class="video-meta">👁 {views_str} · 🕐 {pub_str}</div>'
-                        f'</div>',
-                        unsafe_allow_html=True
+                        f'<div class="vid-title"><a href="{v["link"]}" target="_blank" style="color:#e8e8f0;text-decoration:none">{v["title"]}</a></div>'
+                        f'<div class="vid-meta">👁 {views_str} · {pub_str}</div>',
+                        unsafe_allow_html=True,
                     )
-                    if st.button("💬", key=f"cmtbtn_{v['video_id']}"):
-                        st.session_state.selected_video = v
-                        st.session_state.comments_result = {}
-                        st.session_state.suggested_titles = []
+                    if st.button("💬", key=f"btn_{v['video_id']}"):
+                        st.session_state["selected_video"] = v
                         st.rerun()

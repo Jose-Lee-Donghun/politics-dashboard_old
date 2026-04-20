@@ -47,7 +47,6 @@ def fetch_rss(channel_id: str) -> list[dict]:
             if published:
                 pub_dt = datetime.fromisoformat(published.replace("Z", "+00:00")).astimezone(KST)
 
-            # media:group > media:community > media:statistics[@views]
             views = None
             media_group = entry.find("media:group", NS)
             if media_group is not None:
@@ -55,10 +54,9 @@ def fetch_rss(channel_id: str) -> list[dict]:
                 if community is not None:
                     stats = community.find("media:statistics", NS)
                     if stats is not None:
-                        try:
-                            views = int(stats.get("views", 0))
-                        except (ValueError, TypeError):
-                            pass
+                        v = stats.get("views")
+                        if v:
+                            views = int(v)
 
             videos.append({
                 "video_id": video_id,
@@ -80,8 +78,7 @@ def fetch_channel_videos(handle: str, hours: int = 48) -> list[dict]:
         return []
     videos = fetch_rss(channel_id)
     cutoff = datetime.now(KST) - timedelta(hours=hours)
-    recent = [v for v in videos if v["published"] and v["published"] >= cutoff]
-    return recent
+    return [v for v in videos if v["published"] and v["published"] >= cutoff]
 
 
 def fetch_all(handles: list[str], hours: int = 48) -> list[dict]:
@@ -90,27 +87,44 @@ def fetch_all(handles: list[str], hours: int = 48) -> list[dict]:
         futures = {ex.submit(fetch_channel_videos, h, hours): h for h in handles}
         for f in as_completed(futures):
             all_videos.extend(f.result())
-
     all_videos.sort(key=lambda x: x["views"] or 0, reverse=True)
     return all_videos
+
+
+def _parse_votes(votes) -> int:
+    if not votes:
+        return 0
+    s = str(votes).strip().replace(",", "")
+    try:
+        if s.endswith("K"):
+            return int(float(s[:-1]) * 1000)
+        if s.endswith("M"):
+            return int(float(s[:-1]) * 1_000_000)
+        return int(float(s))
+    except Exception:
+        return 0
 
 
 def fetch_comments(video_id: str) -> dict:
     try:
         from youtube_comment_downloader import YoutubeCommentDownloader, SORT_BY_POPULAR, SORT_BY_RECENT
+
         dl = YoutubeCommentDownloader()
         url = f"https://www.youtube.com/watch?v={video_id}"
+
         popular, recent = [], []
         for c in dl.get_comments_from_url(url, sort_by=SORT_BY_POPULAR):
             popular.append(c)
             if len(popular) >= 5:
                 break
+
         for c in dl.get_comments_from_url(url, sort_by=SORT_BY_RECENT):
             recent.append(c)
             if len(recent) >= 5:
                 break
+
         return {"popular": popular, "recent": recent}
-    except Exception:
+    except Exception as e:
         import traceback
         return {"popular": [], "recent": [], "error": traceback.format_exc()}
 
