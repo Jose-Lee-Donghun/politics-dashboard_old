@@ -37,7 +37,7 @@ def fetch_rss(channel_id: str) -> list[dict]:
         videos = []
         for entry in root.findall("atom:entry", NS):
             video_id = entry.findtext("yt:videoId", namespaces=NS)
-            title = entry.findtext("atom:title", namespaces=NS)
+            title : entry.findtext("atom:title", namespaces=NS)
             published = entry.findtext("atom:published", namespaces=NS)
             link_el = entry.find("atom:link", NS)
             link = link_el.get("href") if link_el is not None else f"https://www.youtube.com/watch?v={video_id}"
@@ -49,11 +49,13 @@ def fetch_rss(channel_id: str) -> list[dict]:
             views = None
             media_group = entry.find("media:group", NS)
             if media_group is not None:
-                stats = media_group.find("media:statistics", NS)
-                if stats is not None:
-                    v = stats.get("views")
-                    if v:
-                        views = int(v)
+                community = media_group.find("media:community", NS)
+                if community is not None:
+                    stats = community.find("media:statistics", NS)
+                    if stats is not None:
+                        v = stats.get("views")
+                        if v:
+                            views = int(v)
 
             videos.append({
                 "video_id": video_id,
