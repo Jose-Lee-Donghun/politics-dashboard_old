@@ -123,5 +123,6 @@ def fetch_comments(video_id: str) -> dict:
                 break
 
         return {"popular": popular, "recent": recent}
-    except Exception:
-        return {"popular": [], "recent": []}
+    except Exception as e:
+        import traceback
+        return {"popular": [], "recent": [], "error": traceback.format_exc()}
