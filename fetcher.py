@@ -90,21 +90,38 @@ def fetch_all(handles: list[str], hours: int = 48) -> list[dict]:
     return all_videos
 
 
+def _parse_votes(votes) -> int:
+    if not votes:
+        return 0
+    s = str(votes).strip().replace(",", "")
+    try:
+        if s.endswith("K"):
+            return int(float(s[:-1]) * 1000)
+        if s.endswith("M"):
+            return int(float(s[:-1]) * 1_000_000)
+        return int(float(s))
+    except Exception:
+        return 0
+
+
 def fetch_comments(video_id: str) -> dict:
     try:
-        import yt_dlp
-        ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "skip_download": True,
-            "getcomments": True,
-            "extractor_args": {"youtube": {"max_comments": ["30", "0", "0", "0"]}},
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            comments = info.get("comments") or []
-            top5 = comments[:5]
-            by_likes = sorted(comments, key=lambda c: c.get("like_count") or 0, reverse=True)[:5]
-            return {"top": top5, "by_likes": by_likes}
+        from youtube_comment_downloader import YoutubeCommentDownloader, SORT_BY_POPULAR, SORT_BY_RECENT
+
+        dl = YoutubeCommentDownloader()
+        url = f"https://www.youtube.com/watch?v={video_id}"
+
+        popular, recent = [], []
+        for c in dl.get_comments_from_url(url, sort_by=SORT_BY_POPULAR):
+            popular.append(c)
+            if len(popular) >= 5:
+                break
+
+        for c in dl.get_comments_from_url(url, sort_by=SORT_BY_RECENT):
+            recent.append(c)
+            if len(recent) >= 5:
+                break
+
+        return {"popular": popular, "recent": recent}
     except Exception:
-        return {"top": [], "by_likes": []}
+        return {"popular": [], "recent": []}
