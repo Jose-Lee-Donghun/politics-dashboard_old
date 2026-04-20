@@ -72,11 +72,11 @@ if fetched_at:
 
 filtered = [v for v in videos if (v["views"] or 0) >= min_views]
 
-# ── 사이드바: 선택된 영상 댓글 ──────────────────────────────────
+# ── 사이드바: 선택된 영상 댓글 + AI 제목 추천 ──────────────────────────────────
 with st.sidebar:
     sel = st.session_state.get("selected_video")
     if sel:
-        st.markdown(f'<p style="font-size:0.8rem;font-weight:600;color:#7eb3ff">💬 댓글</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-size:0.8rem;font-weight:600;color:#7eb3ff">💬 댓글 & AI 제목 추천</p>', unsafe_allow_html=True)
         st.markdown(f'<p style="font-size:0.72rem;color:#c0c0d0">{sel["title"]}</p>', unsafe_allow_html=True)
         st.markdown(f'<p style="font-size:0.65rem;color:#5a5a7a">📺 {sel["channel"]}</p>', unsafe_allow_html=True)
         st.divider()
