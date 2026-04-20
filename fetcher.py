@@ -37,7 +37,7 @@ def fetch_rss(channel_id: str) -> list[dict]:
         videos = []
         for entry in root.findall("atom:entry", NS):
             video_id = entry.findtext("yt:videoId", namespaces=NS)
-            title : entry.findtext("atom:title", namespaces=NS)
+            title = entry.findtext("atom:title", namespaces=NS)
             published = entry.findtext("atom:published", namespaces=NS)
             link_el = entry.find("atom:link", NS)
             link = link_el.get("href") if link_el is not None else f"https://www.youtube.com/watch?v={video_id}"
