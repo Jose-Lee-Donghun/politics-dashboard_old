@@ -34,21 +34,55 @@ filtered = [v for v in videos if (v["views"] or 0) >= min_views]
 if not filtered:
     st.info("해당 조건에 맞는 영상이 없습니다.")
 else:
+    # 보기 모드 선택
+    view_mode = st.radio("보기 모드", ["전체 순위", "채널별 보기"], horizontal=True)
     st.markdown(f"**총 {len(filtered)}개** 영상")
     st.divider()
 
     cols_per_row = 3
-    for i in range(0, len(filtered), cols_per_row):
-        cols = st.columns(cols_per_row)
-        for j, col in enumerate(cols):
-            idx = i + j
-            if idx >= len(filtered):
-                break
-            v = filtered[idx]
-            with col:
-                st.image(v["thumbnail"], use_container_width=True)
-                views_str = f"{v['views']:,}" if v["views"] is not None else "조회수 불러오는 중"
-                pub_str = v["published"].strftime("%m/%d %H:%M") if v["published"] else ""
-                st.markdown(f"**[{v['title']}]({v['link']})**")
-                st.markdown(f"📺 {v['channel']}　👁 {views_str}　🕐 {pub_str}")
-                st.divider()
+
+    if view_mode == "전체 순위":
+        for i in range(0, len(filtered), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j, col in enumerate(cols):
+                idx = i + j
+                if idx >= len(filtered):
+                    break
+                v = filtered[idx]
+                with col:
+                    st.image(v["thumbnail"], use_container_width=True)
+                    views_str = f"{v['views']:,}" if v["views"] is not None else "조회수 없음"
+                    pub_str = v["published"].strftime("%m/%d %H:%M") if v["published"] else ""
+                    st.markdown(f"**[{v['title']}]({v['link']})**")
+                    st.markdown(f"📺 {v['channel']}　👁 {views_str}　🕐 {pub_str}")
+                    st.divider()
+
+    else:  # 채널별 보기
+        # 채널 목록 (등장한 채널만)
+        channels_in_data = sorted(set(v["channel"] for v in filtered))
+        selected = st.selectbox("채널 선택", ["전체"] + channels_in_data)
+
+        channel_filtered = filtered if selected == "전체" else [v for v in filtered if v["channel"] == selected]
+
+        # 채널별로 그룹화
+        from collections import defaultdict
+        grouped = defaultdict(list)
+        for v in channel_filtered:
+            grouped[v["channel"]].append(v)
+
+        for ch_name, ch_videos in sorted(grouped.items(), key=lambda x: -sum(v["views"] or 0 for v in x[1])):
+            with st.expander(f"📺 {ch_name}  ({len(ch_videos)}개)", expanded=(selected != "전체")):
+                for i in range(0, len(ch_videos), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    for j, col in enumerate(cols):
+                        idx = i + j
+                        if idx >= len(ch_videos):
+                            break
+                        v = ch_videos[idx]
+                        with col:
+                            st.image(v["thumbnail"], use_container_width=True)
+                            views_str = f"{v['views']:,}" if v["views"] is not None else "조회수 없음"
+                            pub_str = v["published"].strftime("%m/%d %H:%M") if v["published"] else ""
+                            st.markdown(f"**[{v['title']}]({v['link']})**")
+                            st.markdown(f"👁 {views_str}　🕐 {pub_str}")
+                            st.divider()
