@@ -3,15 +3,27 @@ sys.path.insert(0, ".")
 from fetcher import fetch_all
 from channels import CHANNELS
 from datetime import datetime, timezone, timedelta
-import webbrowser, os, subprocess
+import webbrowser, os, subprocess, json
 
 KST = timezone(timedelta(hours=9))
 HOURS = 48
 MIN_VIEWS = 10000
 
 print("채널 스캔 중... (1~2분 소요)")
-videos = [v for v in fetch_all(CHANNELS, hours=HOURS) if (v["views"] or 0) >= MIN_VIEWS]
+all_videos = fetch_all(CHANNELS, hours=HOURS)
+videos = [v for v in all_videos if (v["views"] or 0) >= MIN_VIEWS]
 now = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+
+# videos.json 저장 (Streamlit 앱용 캐시)
+json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos.json")
+serializable = []
+for v in all_videos:
+    row = dict(v)
+    row["published"] = v["published"].isoformat() if v["published"] else None
+    serializable.append(row)
+with open(json_path, "w", encoding="utf-8") as f:
+    json.dump({"updated_at": now, "videos": serializable}, f, ensure_ascii=False)
+print(f"videos.json 저장 완료 ({len(serializable)}개)")
 
 # 채널별 그룹화 후 각 채널 내 조회수 내림차순 정렬
 from collections import defaultdict

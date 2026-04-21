@@ -1,9 +1,9 @@
 import streamlit as st
-import os
+import os, json
 os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
-from fetcher import fetch_all, fetch_comments
+from fetcher import fetch_comments
 from channels import CHANNELS
 
 KST = timezone(timedelta(hours=9))
@@ -59,16 +59,32 @@ with c2:
 with c3:
     refresh = st.button("⟳ 새로고침", type="primary")
 
+def load_videos_json():
+    path = os.path.join(os.path.dirname(__file__), "videos.json")
+    if not os.path.exists(path):
+        return [], None
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    videos = []
+    for v in data.get("videos", []):
+        if v.get("published"):
+            v["published"] = datetime.fromisoformat(v["published"])
+        videos.append(v)
+    return videos, data.get("updated_at")
+
 if refresh or "videos" not in st.session_state:
-    with st.spinner("채널 스캔 중..."):
-        st.session_state.videos = fetch_all(CHANNELS, hours=hours)
-    st.session_state.fetched_at = datetime.now(KST).strftime("%H:%M:%S")
+    with st.spinner("데이터 로딩 중..."):
+        videos_raw, updated_at = load_videos_json()
+    if not videos_raw:
+        st.warning("데이터 파일이 없습니다. GitHub Actions 'Update Dashboard' 워크플로우를 수동 실행해주세요.")
+    st.session_state.videos = videos_raw
+    st.session_state.fetched_at = updated_at or ""
     st.session_state.pop("selected_video", None)
 
 videos = st.session_state.get("videos", [])
 fetched_at = st.session_state.get("fetched_at", "")
 if fetched_at:
-    st.markdown(f'<span style="font-size:0.68rem;color:#3a3a5a">마지막 갱신: {fetched_at} | 총 {len(videos)}개 영상 수집</span>', unsafe_allow_html=True)
+    st.markdown(f'<span style="font-size:0.68rem;color:#3a3a5a">데이터 기준: {fetched_at} KST | 총 {len(videos)}개 영상</span>', unsafe_allow_html=True)
 
 filtered = [v for v in videos if (v["views"] or 0) >= min_views]
 
