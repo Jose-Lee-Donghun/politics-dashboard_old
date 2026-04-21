@@ -68,7 +68,7 @@ if refresh or "videos" not in st.session_state:
 videos = st.session_state.get("videos", [])
 fetched_at = st.session_state.get("fetched_at", "")
 if fetched_at:
-    st.markdown(f'<span style="font-size:0.68rem;color:#3a3a5a">마지막 갱신: {fetched_at}</span>', unsafe_allow_html=True)
+    st.markdown(f'<span style="font-size:0.68rem;color:#3a3a5a">마지막 갱신: {fetched_at} | 총 {len(videos)}개 영상 수집</span>', unsafe_allow_html=True)
 
 filtered = [v for v in videos if (v["views"] or 0) >= min_views]
 
