@@ -1,6 +1,5 @@
 import requests
 import xml.etree.ElementTree as ET
-import re
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -10,22 +9,6 @@ NS = {
     "yt": "http://www.youtube.com/xml/schemas/2015",
     "media": "http://search.yahoo.com/mrss/",
 }
-
-
-def get_channel_id(handle: str) -> str | None:
-    handle = handle.lstrip("@")
-    url = f"https://www.youtube.com/@{handle}"
-    try:
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        m = re.search(r'"channelId":"(UC[\w-]+)"', r.text)
-        if m:
-            return m.group(1)
-        m = re.search(r'"externalId":"(UC[\w-]+)"', r.text)
-        if m:
-            return m.group(1)
-    except Exception:
-        pass
-    return None
 
 
 def fetch_rss(channel_id: str) -> list[dict]:
@@ -71,19 +54,16 @@ def fetch_rss(channel_id: str) -> list[dict]:
         return []
 
 
-def fetch_channel_videos(handle: str, hours: int = 48) -> list[dict]:
-    channel_id = get_channel_id(handle)
-    if not channel_id:
-        return []
+def fetch_channel_videos(handle: str, channel_id: str, hours: int = 48) -> list[dict]:
     videos = fetch_rss(channel_id)
     cutoff = datetime.now(KST) - timedelta(hours=hours)
     return [v for v in videos if v["published"] and v["published"] >= cutoff]
 
 
-def fetch_all(handles: list[str], hours: int = 48) -> list[dict]:
+def fetch_all(channels: dict[str, str], hours: int = 48) -> list[dict]:
     all_videos = []
     with ThreadPoolExecutor(max_workers=8) as ex:
-        futures = {ex.submit(fetch_channel_videos, h, hours): h for h in handles}
+        futures = {ex.submit(fetch_channel_videos, h, cid, hours): h for h, cid in channels.items()}
         for f in as_completed(futures):
             all_videos.extend(f.result())
     all_videos.sort(key=lambda x: x["views"] or 0, reverse=True)
